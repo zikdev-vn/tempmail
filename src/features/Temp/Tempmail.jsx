@@ -208,176 +208,167 @@ const handleExtendEmail = (email) => {
 useBlurScaleIn(".container-mail")
   return (
     
-  <div className="container-mail relative z-20 bg-gray-100 text-gray-700 flex flex-col lg:flex-row w-full max-w-full mx-auto mt-3 gap-4 overflow-hidden">
-    <div className="relative flex flex-col justify-center w-full h-screen font-sans bg-gray-100 overflow-hidden">
-      <div className=" relative z-20 m-5 rounded-lg max-w-3xl bg-white shadow-xl border border-gray-300 overflow-y-auto h-full max-h-[calc(100vh-40px)]">
-        <h1 className=" text-3xl font-bold text-center mb-6">
-          TempMail zikdev.io.vn
-        </h1>
-        {tempEmail && (
-          <div className="remaining-time text-gray-800 text-center">
-            ⏰ Email hết hạn sau: <strong>{formatTime(remainingTime)}</strong>
-          </div>
-        )}
+<div className="container-mail relative z-20 bg-gray-100 text-gray-700 flex flex-col lg:flex-row w-full max-w-full mx-auto mt-3 gap-4 overflow-hidden px-4 sm:px-6">
+  {/* Cột chính: hộp thư */}
+  <div className="relative flex flex-col justify-start w-full min-h-screen font-sans bg-gray-100 overflow-hidden">
+    <div className="relative z-20 mt-4 lg:mt-0 rounded-lg w-full max-w-3xl mx-auto bg-white shadow-xl border border-gray-300 overflow-y-auto h-full max-h-[calc(100vh-40px)] p-4 sm:p-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6">
+        TempMail zikdev.io.vn
+      </h1>
 
-        <div className="mb-6 p-4 border border-gray-300 rounded-md bg-gray-100">
-          <p className="mb-2">Địa chỉ email tạm thời của bạn:</p>
-          <div className="flex justify-between items-center bg-gray-200 p-3 rounded-md">
-            <strong className="break-all">{tempEmail}</strong>
-            
-              <CopyIcon size={24}
-              onClick={copyEmailToClipboard}
-              />
-            
-          </div>
-          <div className="flex items-center justify-center p-3">
-            <Button
-              onClick={createEmail}
-              className=" mt-4 justify-center w-full bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-base font-semibold hover:bg-gray-400 transition-colors"
-            >
-              Tạo email mới
-            </Button>
-          </div>
-
-          <div className="mb-6 p-4 border border-gray-300 rounded-md bg-white">
-            <h2 className=" tile-mail text-xl font-bold mb-4 text-center">
-              Email đã tạo gần đây
-            </h2>
-
-            {emailHistory.length === 0 ? (
-  <p className="text-center text-gray-500">Chưa có email nào được tạo.</p>
-) : (
-  <ul className="list-none p-0 max-h-48 overflow-y-auto space-y-2">
-    {emailHistory.map((email, index) => {
-  const handleAnimatedDelete = () => {
-    const itemEl = itemRefs.current[email];
-    if (!itemEl) return;
-
-    gsap.to(itemEl, {
-      opacity: 0,
-      y: -20,
-      duration: 0.3,
-      onComplete: async () => {
-        await handleDeleteEmail(email);
-        setDeletedEmail(email);
-        setTimeout(() => setDeletedEmail(null), 2000);
-      },
-    });
-  };
-
-  return (
-    <li
-      key={index}
-      ref={(el) => {
-        if (el) itemRefs.current[email] = el;
-      }}
-      className="bg-gray-200 p-3 rounded-md flex justify-between items-center hover:bg-gray-300 transition-colors"
-    >
-      {deletedEmail === email ? (
-        <span className="text-green-600 font-medium"> Done</span>
-      ) : (
-        <>
-          <span
-            onClick={() => setTempEmail(email)}
-            className="cursor-pointer hover:underline"
-          >
-            {email}
-          </span>
-          <div className="flex gap-3">
-            <TrashIcon onClick={handleAnimatedDelete} title="Delete" />
-            <Refresh
-              width={24}
-              height={24}
-              onClick={() => handleExtendEmail(email)}
-            />
-          </div>
-        </>
+      {tempEmail && (
+        <div className="text-gray-800 text-center text-sm sm:text-base mb-4">
+          ⏰ Email hết hạn sau: <strong>{formatTime(remainingTime)}</strong>
+        </div>
       )}
-    </li>
-  );
-})}
 
-  </ul>
-)}
-
-          </div>
+      {/* Email hiển thị */}
+      <div className="mb-6 p-4 border border-gray-300 rounded-md bg-gray-100">
+        <p className="mb-2 text-sm sm:text-base">Địa chỉ email tạm thời của bạn:</p>
+        <div className="flex justify-between items-center bg-gray-200 p-3 rounded-md text-sm sm:text-base">
+          <strong className="break-all">{tempEmail}</strong>
+          <CopyIcon size={20} onClick={copyEmailToClipboard} />
         </div>
 
+        <div className="flex items-center justify-center p-3">
+          <Button
+            onClick={createEmail}
+            className="mt-4 w-full bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm sm:text-base font-semibold hover:bg-gray-400 transition-colors"
+          >
+            Tạo email mới
+          </Button>
+        </div>
+
+        {/* Lịch sử email */}
         <div className="mb-6 p-4 border border-gray-300 rounded-md bg-white">
-          <h2 className="text-2xl font-bold mb-4 text-center">
-            Hộp Thư Đến
-          </h2>
-          {loading ? (
-            <div className="flex justify-center items-center text-gray-500">
-              <LoadingV2 size={24} />
-            </div>
-          ) : !tempEmail ? (
-            <p className="text-center text-gray-500">Nhấn "Tạo email mới" để bắt đầu.</p>
-          ) : messages.length === 0 ? (
-            <p className="text-center text-gray-500">Không có tin nhắn nào. Đang chờ email...</p>
+          <h2 className="text-lg sm:text-xl font-bold mb-4 text-center">Email đã tạo gần đây</h2>
+          {emailHistory.length === 0 ? (
+            <p className="text-center text-gray-500 text-sm">Chưa có email nào được tạo.</p>
           ) : (
-            <ul className="list-none p-0">
-              {messages.map((msg, index) => (
-                <li
-                  key={index}
-                  onClick={() => setSelectedMessage(msg)}
-                  className="bg-gray-100 mb-2 p-3 rounded-md cursor-pointer hover:bg-gray-200 transition-colors"
-                >
-                  <strong className="text-lg">{msg.subject}</strong>
-                  <span className="block text-gray-600 text-sm">Từ: {msg.from}</span>
-                  <small className="block text-gray-500 text-xs mt-1">
-                    {new Date(msg.timestamp).toLocaleString()}
-                  </small>
-                </li>
-              ))}
+            <ul className="list-none p-0 max-h-48 overflow-y-auto space-y-2">
+              {emailHistory.map((email, index) => {
+                const handleAnimatedDelete = () => {
+                  const itemEl = itemRefs.current[email];
+                  if (!itemEl) return;
+                  gsap.to(itemEl, {
+                    opacity: 0,
+                    y: -20,
+                    duration: 0.3,
+                    onComplete: async () => {
+                      await handleDeleteEmail(email);
+                      setDeletedEmail(email);
+                      setTimeout(() => setDeletedEmail(null), 2000);
+                    },
+                  });
+                };
+
+                return (
+                  <li
+                    key={index}
+                    ref={(el) => {
+                      if (el) itemRefs.current[email] = el;
+                    }}
+                    className="bg-gray-200 p-3 rounded-md flex justify-between items-center hover:bg-gray-300 transition-colors text-sm"
+                  >
+                    {deletedEmail === email ? (
+                      <span className="text-green-600 font-medium">Done</span>
+                    ) : (
+                      <>
+                        <span
+                          onClick={() => setTempEmail(email)}
+                          className="cursor-pointer hover:underline"
+                        >
+                          {email}
+                        </span>
+                        <div className="flex gap-2">
+                          <TrashIcon onClick={handleAnimatedDelete} title="Delete" />
+                          <Refresh width={20} height={20} onClick={() => handleExtendEmail(email)} />
+                        </div>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
+      </div>
 
-        {selectedMessage && (
-          <div className="p-4 border border-gray-300 rounded-md bg-gray-100">
-            <h2 className="text-2xl font-bold mb-4 text-center">
-              Chi Tiết Email
-            </h2>
-            <p className="mb-2 text-sm">
-              <strong className="text-gray-800">Từ:</strong> {selectedMessage.from}
-            </p>
-            <p className="mb-4 text-sm">
-              <strong className="text-gray-800">Chủ đề:</strong> {selectedMessage.subject}
-            </p>
-            <p className="font-semibold text-gray-800 text-sm mb-2">Nội dung:</p>
-            {selectedMessage.html ? (
-              <div
-                className="bg-white p-3 rounded-md max-h-60 overflow-y-auto text-gray-700"
-                dangerouslySetInnerHTML={{ __html: selectedMessage.html }}
-              />
-            ) : (
-              <p className="bg-white p-3 rounded-md max-h-60 overflow-y-auto text-gray-700 whitespace-pre-wrap text-sm">
-                {selectedMessage.body}
-              </p>
-            )}
-            <button
-              onClick={() => setSelectedMessage(null)}
-              className="flex justify-center items-center bg-gray-300 w-full mt-4 hover:bg-gray-400 transition-colors py-2 rounded"
-            >
-              <ArrowUpOn width={24} height={24} />
-            </button>
+      {/* Hộp thư đến */}
+      <div className="mb-6 p-4 border border-gray-300 rounded-md bg-white">
+        <h2 className="text-xl font-bold mb-4 text-center">Hộp Thư Đến</h2>
+        {loading ? (
+          <div className="flex justify-center items-center text-gray-500">
+            <LoadingV2 size={24} />
           </div>
+        ) : !tempEmail ? (
+          <p className="text-center text-gray-500 text-sm">Nhấn "Tạo email mới" để bắt đầu.</p>
+        ) : messages.length === 0 ? (
+          <p className="text-center text-gray-500 text-sm">Không có tin nhắn nào. Đang chờ email...</p>
+        ) : (
+          <ul className="list-none p-0">
+            {messages.map((msg, index) => (
+              <li
+                key={index}
+                onClick={() => setSelectedMessage(msg)}
+                className="bg-gray-100 mb-2 p-3 rounded-md cursor-pointer hover:bg-gray-200 transition-colors text-sm sm:text-base"
+              >
+                <strong className="text-base">{msg.subject}</strong>
+                <span className="block text-gray-600 text-sm">Từ: {msg.from}</span>
+                <small className="block text-gray-500 text-xs mt-1">
+                  {new Date(msg.timestamp).toLocaleString()}
+                </small>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
-    </div>
 
-    <div className="w-full lg:w-[40%] bg-white rounded-lg p-4 border border-gray-300 shadow-xl overflow-y-auto">
-      <h2 className="text-xl font-bold mb-4 text-center">Thông tin Server</h2>
-      <ul className="space-y-2 text-sm">
-        <li><strong>🟢 Trạng thái:</strong> Đang hoạt động</li>
-        <li><strong>🌐 IP:</strong> temp.zikdev.io</li>
-        <li><strong>🕒 Uptime:</strong> 12 ngày 5 giờ</li>
-        <li><strong>📦 Bộ nhớ:</strong> Loading...</li>
-        <li><strong>📨 Email xử lý:</strong> {emailHistory.length} email</li>
-      </ul>
+      {/* Chi tiết email */}
+      {selectedMessage && (
+        <div className="p-4 border border-gray-300 rounded-md bg-gray-100">
+          <h2 className="text-xl font-bold mb-4 text-center">Chi Tiết Email</h2>
+          <p className="mb-2 text-sm">
+            <strong>Từ:</strong> {selectedMessage.from}
+          </p>
+          <p className="mb-2 text-sm">
+            <strong>Chủ đề:</strong> {selectedMessage.subject}
+          </p>
+          <p className="font-semibold text-sm mb-2">Nội dung:</p>
+          {selectedMessage.html ? (
+            <div
+              className="bg-white p-3 rounded-md max-h-60 overflow-y-auto text-gray-700 text-sm"
+              dangerouslySetInnerHTML={{ __html: selectedMessage.html }}
+            />
+          ) : (
+            <p className="bg-white p-3 rounded-md max-h-60 overflow-y-auto text-gray-700 whitespace-pre-wrap text-sm">
+              {selectedMessage.body}
+            </p>
+          )}
+          <button
+            onClick={() => setSelectedMessage(null)}
+            className="flex justify-center items-center bg-gray-300 w-full mt-4 hover:bg-gray-400 transition-colors py-2 rounded"
+          >
+            <ArrowUpOn width={20} height={20} />
+          </button>
+        </div>
+      )}
     </div>
   </div>
+
+  {/* Cột phụ: Thông tin server */}
+  <div className="w-full lg:w-[40%] bg-white rounded-lg p-4 border border-gray-300 shadow-xl overflow-y-auto h-full max-h-[calc(100vh-40px)]">
+    <h2 className="text-lg sm:text-xl font-bold mb-4 text-center">Thông tin Server</h2>
+    <ul className="space-y-2 text-sm">
+      <li><strong>🟢 Trạng thái:</strong> Đang hoạt động</li>
+      <li><strong>🌐 IP:</strong> temp.zikdev.io</li>
+      <li><strong>🕒 Uptime:</strong> 12 ngày 5 giờ</li>
+      <li><strong>📦 Bộ nhớ:</strong> Loading...</li>
+      <li><strong>📨 Email xử lý:</strong> {emailHistory.length} email</li>
+    </ul>
+  </div>
+</div>
+
 );
 
 };

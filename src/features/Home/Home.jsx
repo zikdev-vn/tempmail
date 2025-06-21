@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Star, Users, Zap, Shield, ArrowRight, Menu, X, Play, Check } from 'lucide-react';
 import FadeContent from '../../components/Common/FadeContent';
+
+import AuthForm from '../Auth/AuthForm';
+
+
 const Home = () => {
   
   const [scrollY, setScrollY] = useState(0);
