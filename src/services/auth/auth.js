@@ -1,6 +1,6 @@
 const URL_API = process.env.REACT_APP_API_URL ;
 //const URL_API = "http://160.30.21.53:8000/api";
-const SECRET_KEY = process.env.REACT_APP_SECRET_KEY ;
+
 
 
 
