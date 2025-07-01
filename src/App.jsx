@@ -7,10 +7,11 @@ import Home from "./features/Home/Home"
 import ModelsPage from "./features/ModelPage";
 import Portfolio from "./features/Portfolio/Portfolio";
 import MyTracker from "./features/Profile/MyTracker";
-
+import { GoogleOAuthProvider } from "@react-oauth/google";
 const App = () => {
   return (
     <>
+    <GoogleOAuthProvider clientId="472136523798-njate5d2pd2lqh57vmfs5l9gqt6foasu.apps.googleusercontent.com">
 <BrowserRouter>
   <Routes>
     <Route path="/" element={<Navside />}>
@@ -23,7 +24,7 @@ const App = () => {
      <Route path="mytraker" element={<MyTracker />} />
   </Routes>
 </BrowserRouter>
-
+</GoogleOAuthProvider>
     </>
   );
 };

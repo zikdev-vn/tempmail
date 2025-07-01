@@ -5,30 +5,43 @@ import AuthForm from "../features/Auth/AuthForm";
 import MyProfile from "../features/Profile/MyProfile";
 import EditProfileForm from "../features/Profile/EditProfile";
 import SettingsForm from "../features/Profile/Setting";
-import ModalWrapper from "../components/Common/ModelWrapper"; 
+import ModalWrapper from "../components/Common/ModelWrapper";
 
 
 const Navside = () => {
-   const [activeForm, setActiveForm] = useState(null);
+  const [activeForm, setActiveForm] = useState(null);
   const [asideOpen, setAsideOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Trạng thái đăng nhập
+  const [user, setUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false); // Trạng thái hiển thị form login
   const profileDropdownRef = useRef(null);
-  const toggleProfileDropdown = () => setProfileOpen(!profileOpen);
-  const [user, setUser] = useState(null);
+  
+
   const handleMyProfile = () => setActiveForm("profile");
-const handleEditProfile = () => setActiveForm("edit");
-const handleSettingProfile = () => setActiveForm("settings");
+  const handleEditProfile = () => setActiveForm("edit");
+  const handleSettingProfile = () => setActiveForm("settings");
+const toggleProfileDropdown = () => setProfileOpen(!profileOpen);
 
-  const handleLoginClick = () => {
-    setShowLoginModal(true); // Hiển thị form đăng nhập
-  };
+const handleLoginSuccess = (userData) => {
+  setIsLoggedIn(true); // Đặt trạng thái đăng nhập là true
+  setUser(userData); // Cập nhật thông tin người dùng
+  localStorage.setItem('user', JSON.stringify(userData)); // Lưu user vào localStorage
+  setShowLoginModal(false); // Đóng modal đăng nhập
+};
 
-  const handleLogoutClick = () => {
-    setIsLoggedIn(false); // Đánh dấu người dùng đã đăng xuất
-  };
 
+
+
+const handleLogoutClick = () => {
+  setIsLoggedIn(false); // Đặt trạng thái đăng xuất là false
+  setUser(null); // Xóa thông tin người dùng
+  localStorage.removeItem('user'); // Xóa user khỏi localStorage khi logout
+  // Nếu bạn có token, hãy xóa token ở đây
+};
+const handleLoginClick = () => {
+  setShowLoginModal(true);
+};
   // Đóng dropdown khi người dùng nhấp ra ngoài
   const handleClickOutside = (e) => {
     if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
@@ -50,6 +63,7 @@ const handleSettingProfile = () => setActiveForm("settings");
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
+      setIsLoggedIn(true); // Ensure isLoggedIn is true if user exists in localStorage
     }
   }, []);
   const navLinks = [
@@ -89,34 +103,38 @@ const handleSettingProfile = () => setActiveForm("settings");
 
         <div className="relative">
           <button
-            type="button"
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="h-9 w-9 overflow-hidden rounded-full"
-          >
-            <img src="https://plchldr.co/i/40x40?bg=111111" alt="avatar" />
-          </button>
+    type="button"
+    onClick={() => setProfileOpen(!profileOpen)}
+    className="h-9 w-9 overflow-hidden rounded-full"
+  >
+    {/* Sử dụng user.picture cho ảnh đại diện chính */}
+    <img
+      src={user && user.picture ? user.picture : "https://plchldr.co/i/40x40?bg=111111"}
+      alt="avatar"
+    />
+  </button>
 
-          <div
-            className={`absolute right-0 mt-1 w-48 divide-y divide-gray-200 rounded-md border border-gray-200 bg-white shadow-md z-50 transition-all duration-700 ease-in-out transform
-            ${profileOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}
-            `}
-          >
-            <div className="flex items-center space-x-2 p-2">
-              <img
-                src="https://plchldr.co/i/40x40?bg=111111"
-                alt="avatar"
-                className="h-9 w-9 rounded-full"
-              />
-              <div className="font-medium">
-                {user ? user.name : 'Guest'}
-
-              </div>
-            </div>
+  <div
+    className={`absolute right-0 mt-1 w-48 divide-y divide-gray-200 rounded-md border border-gray-200 bg-white shadow-md z-50 transition-all duration-700 ease-in-out transform
+    ${profileOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}
+    `}
+  >
+    <div className="flex items-center space-x-2 p-2">
+      {/* Sử dụng user.picture cho ảnh trong dropdown */}
+      <img
+        src={user && user.picture ? user.picture : "https://plchldr.co/i/40x40?bg=111111"}
+        alt="avatar"
+        className="h-9 w-9 rounded-full"
+      />
+      <div className="font-medium">
+        {user ? user.name : 'Guest'}
+      </div>
+    </div>
 
             <div className="flex flex-col space-y-3 p-2">
-              <Link to="#" onClick={handleMyProfile} className="hover:text-blue-600">My Profile</Link>
-<Link to="#" onClick={handleEditProfile} className="hover:text-blue-600">Edit Profile</Link>
-<Link to="#" onClick={handleSettingProfile} className="hover:text-blue-600">Settings</Link>
+              <Link  onClick={handleMyProfile} className="hover:text-blue-600">My Profile</Link>
+              <Link  onClick={handleEditProfile} className="hover:text-blue-600">Edit Profile</Link>
+              <Link  onClick={handleSettingProfile} className="hover:text-blue-600">Settings</Link>
 
             </div>
 
@@ -179,31 +197,32 @@ const handleSettingProfile = () => setActiveForm("settings");
 
       {/* Hiển thị form login khi showLoginModal = true */}
       {showLoginModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
-          onClick={() => setShowLoginModal(false)} // Đóng modal khi nhấp ngoài form
-        >
-          <div
-            className="bg-white p-6 rounded-md shadow-md w-96"
-            onClick={(e) => e.stopPropagation()} // Ngừng sự kiện click truyền vào modal con
-          >
-            <button
-              className="absolute top-2 right-2 text-lg font-bold"
-              onClick={() => setShowLoginModal(false)}
-            >
-              X
-            </button>
-            <AuthForm onSuccess={() => setShowLoginModal(false)} />
-          </div>
-        </div>
-      )}
-      {activeForm && (
-  <ModalWrapper onClose={() => setActiveForm(null)}>
-    {activeForm === "profile" && <MyProfile user={user} />}
-    {activeForm === "edit" && <EditProfileForm user={user} />}
-    {activeForm === "settings" && <SettingsForm user={user} />}
-  </ModalWrapper>
+  <div
+    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+    onClick={() => setShowLoginModal(false)}
+  >
+    <div
+      className="bg-white p-6 rounded-md shadow-md w-96"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        className="absolute top-2 right-2 text-lg font-bold"
+        onClick={() => setShowLoginModal(false)}
+      >
+        X
+      </button>
+      {/* Thay đổi onSuccess */}
+      <AuthForm onSuccess={handleLoginSuccess} />
+    </div>
+  </div>
 )}
+      {activeForm && (
+        <ModalWrapper onClose={() => setActiveForm(null)}>
+          {activeForm === "profile" && <MyProfile user={user} />}
+          {activeForm === "edit" && <EditProfileForm user={user} />}
+          {activeForm === "settings" && <SettingsForm user={user} />}
+        </ModalWrapper>
+      )}
 
 
     </div>
