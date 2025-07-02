@@ -9,7 +9,7 @@ import Button from "../../components/Button/Button"
 import Refresh from '../../components/icons/Refresh';
 import { gsap } from 'gsap';
 import { useFadeUpOnMount ,useBlurScaleIn } from '../../hooks/useGsapAnimations';
-
+import { createEmail, deleteEmail ,getEmails } from '../../services/tempmail/mailapi'; 
 
 const TempMail = () => {
   const [tempEmail, setTempEmail] = useState(null);
@@ -32,54 +32,30 @@ const TempMail = () => {
 
 
 
-  const createEmail = async () => {
-  try {
-    setLoading(true);
-    setSelectedMessage(null);
-    
-    const res = await axios.post("http://localhost:8000/api/createmail");
+  const handleCreateEmail = async () => {
+    try {
+      setLoading(true);
+      setTempEmail(null);
+      const email = await createEmail();  // Gọi API tạo email
+      const createdAt = Date.now();
 
-    const email = res.data.data.name;  // <-- Lấy đúng `email`
-    const createdAt = Date.now();
+      setTempEmail(email);
+      localStorage.setItem("currentTempEmail", email);
+      localStorage.setItem("currentTempEmailCreatedAt", createdAt);
 
-    setTempEmail(email);
-    localStorage.setItem("currentTempEmail", email);
-    localStorage.setItem("currentTempEmailCreatedAt", createdAt);
+      setMessages([]);
+      setLoading(false);
 
-    setMessages([]);
-    setShowEmailEffect(true);
-    setLoading(false);
-
-    const oldEmails = JSON.parse(localStorage.getItem("emailHistory")) || [];
-    const updatedEmails = [email, ...oldEmails.filter(e => e !== email)].slice(0, 20);
-    localStorage.setItem("emailHistory", JSON.stringify(updatedEmails));
-    setEmailHistory(updatedEmails);
-  } catch (err) {
-    console.error("Lỗi tạo email:", err);
-    alert("Không thể tạo email.");
-    setLoading(false);
-  }
-};
-
-  useEffect(() => {
-    const savedEmail = localStorage.getItem("currentTempEmail");
-    const createdAt = localStorage.getItem("currentTempEmailCreatedAt");
-    const now = Date.now();
-
-    if (savedEmail && createdAt) {
-      const age = now - parseInt(createdAt, 10);
-      if (age < 10 * 60 * 1000) {
-        setTempEmail(savedEmail);
-      } else {
-        localStorage.removeItem("currentTempEmail");
-        localStorage.removeItem("currentTempEmailCreatedAt");
-      }
+      const oldEmails = JSON.parse(localStorage.getItem("emailHistory")) || [];
+      const updatedEmails = [email, ...oldEmails.filter(e => e !== email)].slice(0, 20);
+      localStorage.setItem("emailHistory", JSON.stringify(updatedEmails));
+      setEmailHistory(updatedEmails);
+    } catch (err) {
+      console.error("Lỗi tạo email:", err);
+      alert("Không thể tạo email.");
+      setLoading(false);
     }
-
-    const savedEmails = JSON.parse(localStorage.getItem("emailHistory")) || [];
-    setEmailHistory(savedEmails);
-  }, []);
-
+  };
 
   useEffect(() => {
     if (!tempEmail) return;
@@ -106,9 +82,8 @@ const TempMail = () => {
       if (!mailIntervalId) {
         mailIntervalId = setInterval(async () => {
           try {
-            const mailRes = await axios.get(`http://localhost:8000/api/getmail/${tempEmail}?limit=50`);
-            setMessages(mailRes.data.data.inbox);
-
+            const inboxMessages = await getEmails(tempEmail);  // Gọi API lấy email
+            setMessages(inboxMessages);
           } catch (err) {
             console.error("Lỗi khi lấy email:", err);
           }
@@ -167,26 +142,23 @@ const TempMail = () => {
   const handleDeleteEmail = async (emailToDelete) => {
     const confirmDelete = window.confirm(`Bạn có chắc muốn xóa email ${emailToDelete}?`);
     if (!confirmDelete) return;
-  
+
     try {
-      const response = await axios.delete(`http://localhost:8000/api/deletemail/${emailToDelete}`);
-      //alert(response.data.message);
-  
-      // Nếu email đang xem bị xóa, clear nó ra khỏi state
+      await deleteEmail(emailToDelete);  // Gọi API xóa email
+
       if (emailToDelete === tempEmail) {
         setTempEmail(null);
         setMessages([]);
         localStorage.removeItem("currentTempEmail");
         localStorage.removeItem("currentTempEmailCreatedAt");
       }
-  
-      // Cập nhật lại lịch sử email (xóa email khỏi localStorage và state)
+
       const updatedHistory = emailHistory.filter((e) => e !== emailToDelete);
       localStorage.setItem("emailHistory", JSON.stringify(updatedHistory));
       setEmailHistory(updatedHistory);
     } catch (err) {
-      //console.error("Lỗi khi xóa email:", err);
-      //alert("Xóa email thất bại!");
+      console.error("Lỗi khi xóa email:", err);
+      alert("Xóa email thất bại!");
     }
   };
     
@@ -232,7 +204,7 @@ useBlurScaleIn(".container-mail")
 
         <div className="flex items-center justify-center p-3">
           <Button
-            onClick={createEmail}
+            onClick={handleCreateEmail}
             className="mt-4 w-full bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm sm:text-base font-semibold hover:bg-gray-400 transition-colors"
           >
             Tạo email mới
