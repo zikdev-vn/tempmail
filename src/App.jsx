@@ -23,8 +23,9 @@ const App = () => {
       <Route path="tempmail" element={<TempMail />} />
      
     </Route>
-     <Route path="portfolio" element={<Portfolio />} />
+     <Route path="mycontact" element={<Portfolio />} />
      <Route path="mytraker" element={<MyTracker />} />
+     
   </Routes>
 </BrowserRouter>
 </GoogleOAuthProvider>

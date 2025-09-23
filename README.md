@@ -17,3 +17,7 @@
 - ├── routes/                # Định nghĩa route cho từng trang
 - ├── App.jsx
 - └── index.jsx
+
+
+## git add .
+## git commit -m "..."

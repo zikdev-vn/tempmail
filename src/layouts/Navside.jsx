@@ -23,18 +23,7 @@ const Navside = () => {
   const handleSettingProfile = () => setActiveForm("settings");
 const toggleProfileDropdown = () => setProfileOpen(!profileOpen);
 
-useEffect(() => {
-  try {
-    const raw = localStorage.getItem('user');
-    if (raw === 'undefined' || raw === 'null' || raw === null || raw?.trim() === '') {
-      localStorage.removeItem('user');
-    } else {
-      JSON.parse(raw); // Nếu lỗi sẽ vào catch
-    }
-  } catch {
-    localStorage.removeItem('user');
-  }
-}, []);
+
 
 const handleLoginSuccess = (userData) => {
   setIsLoggedIn(true); // Đặt trạng thái đăng nhập là true

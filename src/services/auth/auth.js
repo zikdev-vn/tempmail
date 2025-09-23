@@ -1,9 +1,6 @@
 const URL_API = process.env.REACT_APP_API_URL ;
 //const URL_API = "http://160.30.21.53:8000/api";
 
-
-
-
 export const login = async (email, password) => {
     const res = await fetch(`${URL_API}/login`, {
       method: "POST",
