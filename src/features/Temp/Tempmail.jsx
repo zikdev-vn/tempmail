@@ -1,348 +1,234 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react';
-
-import axios from 'axios';
-import TrashIcon from '../../components/icons/TrashIcon';
-import CopyIcon from '../../components/icons/CopyIcon';
-import ArrowUpOn from '../../components/icons/ArrowUpOn';
-import LoadingV2 from '../../components/icons/loadingV2';
-import Button from "../../components/Button/Button"
-import Refresh from '../../components/icons/Refresh';
-import { gsap } from 'gsap';
-import { useFadeUpOnMount ,useBlurScaleIn } from '../../hooks/useGsapAnimations';
-import { createEmail, deleteEmail ,getEmails } from '../../services/tempmail/mailapi'; 
+import React, { useState, useEffect, useRef } from "react";
+import CopyIcon from "../../components/icons/CopyIcon";
+import TrashIcon from "../../components/icons/TrashIcon";
+import ArrowUpOn from "../../components/icons/ArrowUpOn";
+import Refresh from "../../components/icons/Refresh";
+import { gsap } from "gsap";
+import { getEmails , deleteEmail } from "../../services/tempmail/mailapi";
 
 const TempMail = () => {
   const [tempEmail, setTempEmail] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [selectedMessage, setSelectedMessage] = useState(null); // ✅ khai báo biến này
-  const [showEmailEffect, setShowEmailEffect] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [emailHistory, setEmailHistory] = useState([]);
   const [remainingTime, setRemainingTime] = useState(0);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [emailHistory, setEmailHistory] = useState([]);
   const [deletedEmail, setDeletedEmail] = useState(null);
   const itemRefs = useRef({});
 
+  const iframeRef = useRef(null);
 
-
-
+  // Copy email
   const copyEmailToClipboard = () => {
-    navigator.clipboard.writeText(tempEmail);
-    alert('Email đã được sao chép!');
+    if (tempEmail) {
+      navigator.clipboard.writeText(tempEmail);
+      alert("Email đã được sao chép!");
+    }
   };
+useEffect(() => {
+  if (!tempEmail) return;
 
-
-
-  const handleCreateEmail = async () => {
+  const fetchInbox = async () => {
     try {
-      setLoading(true);
-      setTempEmail(null);
-      const email = await createEmail();  // Gọi API tạo email
-      const createdAt = Date.now();
-
-      setTempEmail(email);
-      localStorage.setItem("currentTempEmail", email);
-      localStorage.setItem("currentTempEmailCreatedAt", createdAt);
-
-      setMessages([]);
-      setLoading(false);
-
-      const oldEmails = JSON.parse(localStorage.getItem("emailHistory")) || [];
-      const updatedEmails = [email, ...oldEmails.filter(e => e !== email)].slice(0, 20);
-      localStorage.setItem("emailHistory", JSON.stringify(updatedEmails));
-      setEmailHistory(updatedEmails);
-    } catch (err) {
-      console.error("Lỗi tạo email:", err);
-      alert("Không thể tạo email.");
-      setLoading(false);
+      if (remainingTime > 0) {   // check trong hàm
+        const inbox = await getEmails(tempEmail);
+        setMessages(inbox);
+      }
+    } catch (e) {
+      console.warn("Lỗi khi lấy mail:", e.message);
     }
   };
 
-  useEffect(() => {
-    if (!tempEmail) return;
+  // Gọi lần đầu
+  fetchInbox();
 
-    const createdAt = parseInt(localStorage.getItem("currentTempEmailCreatedAt") || "0", 10);
+  // Poll mỗi 5s
+  const intervalId = setInterval(fetchInbox, 5000);
+
+  return () => clearInterval(intervalId);
+}, [tempEmail]); // ❌ bỏ remainingTime
+
+  // Khôi phục email hết hạn trước
+  const restoreEmail = (email) => {
     const now = Date.now();
-    const maxLife = 10 * 60 * 1000; // 10 phút
-    const timeLeft = maxLife - (now - createdAt);
+    localStorage.setItem("currentTempEmail", email);
+    localStorage.setItem("currentTempEmailCreatedAt", now.toString());
+    setTempEmail(email);
+    setRemainingTime(10 * 60 * 1000); // 10 phút mặc định
+  };
 
-    if (timeLeft <= 0) {
-      alert("Email tạm thời đã hết hạn!");
-      localStorage.removeItem("currentTempEmail");
-      localStorage.removeItem("currentTempEmailCreatedAt");
+  // Xóa email
+const handleDeleteEmail = async (emailToDelete) => {
+  if (!window.confirm(`Bạn có chắc muốn xóa email ${emailToDelete}?`)) return;
+
+  try {
+    // Gọi API xóa email ở server
+    const msg = await deleteEmail(emailToDelete);
+    console.log("Kết quả backend:", msg);
+
+    // Cập nhật lịch sử phía frontend
+    const updatedHistory = emailHistory.filter((e) => e !== emailToDelete);
+    localStorage.setItem("emailHistory", JSON.stringify(updatedHistory));
+    setEmailHistory(updatedHistory);
+
+    // Nếu xóa email hiện tại → clear luôn state
+    if (emailToDelete === tempEmail) {
       setTempEmail(null);
-      return;
+      setMessages([]);
+      setRemainingTime(0);
     }
+  } catch (e) {
+    console.warn("Lỗi khi xóa email:", e.message);
+    alert("Không thể xóa email, thử lại sau!");
+  }
+};
 
-    setRemainingTime(timeLeft);
+  // Nhận dữ liệu từ iframe
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (!event.data) return;
+      const { email, expireAt, messages: inboxMessages } = event.data;
 
-    let mailIntervalId;
-    let countdownIntervalId;
+      if (email && email !== tempEmail) {
+        setTempEmail(email);
 
-    const startMailFetching = () => {
-      if (!mailIntervalId) {
-        mailIntervalId = setInterval(async () => {
-          try {
-            const inboxMessages = await getEmails(tempEmail);  // Gọi API lấy email
-            setMessages(inboxMessages);
-          } catch (err) {
-            console.error("Lỗi khi lấy email:", err);
-          }
-        }, 5000);
+        // Cập nhật lịch sử
+        const oldHistory = JSON.parse(localStorage.getItem("emailHistory")) || [];
+        const updatedHistory = [email, ...oldHistory.filter((e) => e !== email)].slice(0, 20);
+        localStorage.setItem("emailHistory", JSON.stringify(updatedHistory));
+        setEmailHistory(updatedHistory);
       }
-    };
 
-    const stopMailFetching = () => {
-      if (mailIntervalId) {
-        clearInterval(mailIntervalId);
-        mailIntervalId = null;
+      if (expireAt) {
+        const timeLeft = expireAt - Date.now();
+        setRemainingTime(timeLeft > 0 ? timeLeft : 0);
       }
+
+      if (inboxMessages) setMessages(inboxMessages);
     };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        startMailFetching();
-      } else {
-        stopMailFetching();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    if (document.visibilityState === "visible") {
-      startMailFetching();
-    }
-
-    const timeoutId = setTimeout(() => {
-      stopMailFetching();
-      alert("Email tạm thời đã hết hạn!");
-      setTempEmail(null);
-      localStorage.removeItem("currentTempEmail");
-      localStorage.removeItem("currentTempEmailCreatedAt");
-    }, timeLeft);
-
-    countdownIntervalId = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 1000) {
-          clearInterval(countdownIntervalId);
-          return 0;
-        }
-        return prev - 1000;
-      });
-    }, 1000);
-
-    return () => {
-      stopMailFetching();
-      clearTimeout(timeoutId);
-      clearInterval(countdownIntervalId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, [tempEmail]);
 
-  
-  const handleDeleteEmail = async (emailToDelete) => {
-    const confirmDelete = window.confirm(`Bạn có chắc muốn xóa email ${emailToDelete}?`);
-    if (!confirmDelete) return;
+  // Countdown
+  useEffect(() => {
+    if (remainingTime <= 0) return;
+    const interval = setInterval(() => {
+      setRemainingTime((prev) => (prev <= 1000 ? 0 : prev - 1000));
+    }, 1000);
 
-    try {
-      await deleteEmail(emailToDelete);  // Gọi API xóa email
-
-      if (emailToDelete === tempEmail) {
-        setTempEmail(null);
-        setMessages([]);
-        localStorage.removeItem("currentTempEmail");
-        localStorage.removeItem("currentTempEmailCreatedAt");
-      }
-
-      const updatedHistory = emailHistory.filter((e) => e !== emailToDelete);
-      localStorage.setItem("emailHistory", JSON.stringify(updatedHistory));
-      setEmailHistory(updatedHistory);
-    } catch (err) {
-      console.error("Lỗi khi xóa email:", err);
-      alert("Xóa email thất bại!");
-    }
-  };
-    
+    return () => clearInterval(interval);
+  }, [remainingTime]);
 
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000);
-    const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-    const seconds = String(totalSeconds % 60).padStart(2, '0');
+    const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
     return `${minutes}:${seconds}`;
   };
 
-const handleExtendEmail = (email) => {
-  const now = Date.now();
-  localStorage.setItem("currentTempEmail", email);
-  localStorage.setItem("currentTempEmailCreatedAt", now.toString());
-  setTempEmail(email);
-};
-//useFadeUpOnMount(".container-mail");
-useBlurScaleIn(".container-mail")
   return (
-    
-<div className="container-mail relative z-20 bg-gray-100 text-gray-700 flex flex-col lg:flex-row w-full max-w-full mx-auto mt-3 gap-4 overflow-hidden px-4 sm:px-6">
-  {/* Cột chính: hộp thư */}
-  <div className="relative flex flex-col justify-start w-full min-h-screen font-sans bg-gray-100 overflow-hidden">
-    <div className="relative z-20 mt-4 lg:mt-0 rounded-lg w-full max-w-3xl mx-auto bg-white shadow-xl border border-gray-300 overflow-y-auto h-full max-h-[calc(100vh-40px)] p-4 sm:p-6">
-      <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6">
-        TempMail zikdev.io.vn
-      </h1>
+    <div className="container-mail flex flex-col lg:flex-row gap-4 p-4 bg-gray-900">
+      {/* Cột chính */}
+      <div className="flex-1 bg-gray-900 shadow rounded p-4 max-h-[calc(100vh-40px)] overflow-y-auto">
+        <h1 className="text-2xl font-bold text-center mb-4">TempMail zikdev.io.vn</h1>
 
-      {tempEmail && (
-        <div className="text-gray-800 text-center text-sm sm:text-base mb-4">
-          ⏰ Email hết hạn sau: <strong>{formatTime(remainingTime)}</strong>
-        </div>
-      )}
+        {tempEmail && (
+          <div className="text-center mb-4">
+            ⏰ Email hết hạn sau: <strong>{formatTime(remainingTime)}</strong>
+          </div>
+        )}
 
-      {/* Email hiển thị */}
-      <div className="mb-6 p-4 border border-gray-300 rounded-md bg-gray-100">
-        <p className="mb-2 text-sm sm:text-base">Địa chỉ email tạm thời của bạn:</p>
-        <div className="flex justify-between items-center bg-gray-200 p-3 rounded-md text-sm sm:text-base">
-          <strong className="break-all">{tempEmail}</strong>
+        {/* Email và nút copy */}
+        <div className="flex justify-between items-center bg-gray-900 p-3 rounded-md mb-4">
+          <strong className="break-all">{tempEmail || "Chưa có email"}</strong>
           <CopyIcon size={20} onClick={copyEmailToClipboard} />
         </div>
 
-        <div className="flex items-center justify-center p-3">
-          <Button
-            onClick={handleCreateEmail}
-            className="mt-4 w-full bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm sm:text-base font-semibold hover:bg-gray-400 transition-colors"
-          >
-            Tạo email mới
-          </Button>
-        </div>
-
         {/* Lịch sử email */}
-        <div className="mb-6 p-4 border border-gray-300 rounded-md bg-white">
-          <h2 className="text-lg sm:text-xl font-bold mb-4 text-center">Email đã tạo gần đây</h2>
+        <div className="mb-4">
+          <h2 className="text-lg font-bold mb-2">Email đã tạo gần đây</h2>
           {emailHistory.length === 0 ? (
-            <p className="text-center text-gray-500 text-sm">Chưa có email nào được tạo.</p>
+            <p className="text-gray-500 text-sm">Chưa có email nào được tạo.</p>
           ) : (
-            <ul className="list-none p-0 max-h-48 overflow-y-auto space-y-2">
-              {emailHistory.map((email, index) => {
-                const handleAnimatedDelete = () => {
-                  const itemEl = itemRefs.current[email];
-                  if (!itemEl) return;
-                  gsap.to(itemEl, {
-                    opacity: 0,
-                    y: -20,
-                    duration: 0.3,
-                    onComplete: async () => {
-                      await handleDeleteEmail(email);
-                      setDeletedEmail(email);
-                      setTimeout(() => setDeletedEmail(null), 2000);
-                    },
-                  });
-                };
-
-                return (
-                  <li
-                    key={index}
-                    ref={(el) => {
-                      if (el) itemRefs.current[email] = el;
-                    }}
-                    className="bg-gray-200 p-3 rounded-md flex justify-between items-center hover:bg-gray-300 transition-colors text-sm"
+            <ul className="space-y-2 max-h-48 overflow-y-auto">
+              {emailHistory.map((email, idx) => (
+                <li
+                  key={idx}
+                  ref={(el) => (itemRefs.current[email] = el)}
+                  className="flex justify-between items-center p-2 bg-gray-900 rounded hover:bg-gray-800 transition"
+                >
+                  <span
+                    className="cursor-pointer hover:underline"
+                    onClick={() => restoreEmail(email)}
                   >
-                    {deletedEmail === email ? (
-                      <span className="text-green-600 font-medium">Done</span>
-                    ) : (
-                      <>
-                        <span
-                          onClick={() => setTempEmail(email)}
-                          className="cursor-pointer hover:underline"
-                        >
-                          {email}
-                        </span>
-                        <div className="flex gap-2">
-                          <TrashIcon onClick={handleAnimatedDelete} title="Delete" />
-                          <Refresh width={20} height={20} onClick={() => handleExtendEmail(email)} />
-                        </div>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
+                    {email}
+                  </span>
+                  <div className="flex gap-2 bg-zinc-300 border-radius-9">
+                    <TrashIcon onClick={() => handleDeleteEmail(email)} />
+                    <Refresh onClick={() => restoreEmail(email)} />
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </div>
-      </div>
 
-      {/* Hộp thư đến */}
-      <div className="mb-6 p-4 border border-gray-300 rounded-md bg-white">
-        <h2 className="text-xl font-bold mb-4 text-center">Hộp Thư Đến</h2>
-        {loading ? (
-          <div className="flex justify-center items-center text-gray-500">
-            <LoadingV2 size={24} />
+        {/* Hộp thư */}
+<div>
+  <h2 className="text-lg font-bold mb-2">Hộp Thư Đến</h2>
+  {messages.length === 0 ? (
+    <p className="text-gray-500 text-sm">Không có tin nhắn nào.</p>
+  ) : (
+    <ul className="space-y-2">
+      {messages.map((msg, idx) => (
+        <li
+          key={idx}
+          className="p-2 bg-gray-900 rounded hover:bg-gray-800 cursor-pointer"
+          onClick={() => setSelectedMessage(msg)}
+        >
+          <strong>{msg.subject}</strong> - <span className="text-gray-200">{msg.from}</span>
+          <div className="text-xs text-gray-200">
+            {new Date(msg.timestamp).toLocaleString()}
           </div>
-        ) : !tempEmail ? (
-          <p className="text-center text-gray-500 text-sm">Nhấn "Tạo email mới" để bắt đầu.</p>
-        ) : messages.length === 0 ? (
-          <p className="text-center text-gray-500 text-sm">Không có tin nhắn nào. Đang chờ email...</p>
-        ) : (
-          <ul className="list-none p-0">
-            {messages.map((msg, index) => (
-              <li
-                key={index}
-                onClick={() => setSelectedMessage(msg)}
-                className="bg-gray-100 mb-2 p-3 rounded-md cursor-pointer hover:bg-gray-200 transition-colors text-sm sm:text-base"
-              >
-                <strong className="text-base">{msg.subject}</strong>
-                <span className="block text-gray-600 text-sm">Từ: {msg.from}</span>
-                <small className="block text-gray-500 text-xs mt-1">
-                  {new Date(msg.timestamp).toLocaleString()}
-                </small>
-              </li>
-            ))}
-          </ul>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
+
+        {/* Chi tiết email */}
+        {selectedMessage && (
+          <div className="mt-2 p-2 bg-gray-900 rounded">
+            <h3 className="font-bold mb-1">Chi tiết Email</h3>
+            <p><strong>Từ:</strong> {selectedMessage.from}</p>
+            <p><strong>Chủ đề:</strong> {selectedMessage.subject}</p>
+            <div
+              className="bg-gray-900 p-2 rounded max-h-60 overflow-y-auto"
+              dangerouslySetInnerHTML={{ __html: selectedMessage.html || selectedMessage.body }}
+            />
+            <button
+              className="mt-2 w-full bg-gray-900 py-1 rounded hover:bg-gray-700"
+              onClick={() => setSelectedMessage(null)}
+            >
+              <ArrowUpOn />
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Chi tiết email */}
-      {selectedMessage && (
-        <div className="p-4 border border-gray-300 rounded-md bg-gray-100">
-          <h2 className="text-xl font-bold mb-4 text-center">Chi Tiết Email</h2>
-          <p className="mb-2 text-sm">
-            <strong>Từ:</strong> {selectedMessage.from}
-          </p>
-          <p className="mb-2 text-sm">
-            <strong>Chủ đề:</strong> {selectedMessage.subject}
-          </p>
-          <p className="font-semibold text-sm mb-2">Nội dung:</p>
-          {selectedMessage.html ? (
-            <div
-              className="bg-white p-3 rounded-md max-h-60 overflow-y-auto text-gray-700 text-sm"
-              dangerouslySetInnerHTML={{ __html: selectedMessage.html }}
-            />
-          ) : (
-            <p className="bg-white p-3 rounded-md max-h-60 overflow-y-auto text-gray-700 whitespace-pre-wrap text-sm">
-              {selectedMessage.body}
-            </p>
-          )}
-          <button
-            onClick={() => setSelectedMessage(null)}
-            className="flex justify-center items-center bg-gray-300 w-full mt-4 hover:bg-gray-400 transition-colors py-2 rounded"
-          >
-            <ArrowUpOn width={20} height={20} />
-          </button>
-        </div>
-      )}
+      {/* Cột phụ: iframe */}
+      <div className="w-full lg:w-[40%] bg-gray-900 shadow rounded p-4 max-h-[calc(100vh-40px)]">
+        <h2 className="text-lg font-bold text-center mb-2">TempMail</h2>
+        <iframe
+          ref={iframeRef}
+          src="http://localhost:8000/api/gmail-new?lang=en"
+          title="TempMail"
+          style={{ width: "100%", height: "500px", border: "1px solid gray" }}
+        />
+      </div>
     </div>
-  </div>
-
-  {/* Cột phụ: Thông tin server */}
-  <div className="w-full lg:w-[40%] bg-white rounded-lg p-4 border border-gray-300 shadow-xl overflow-y-auto h-full max-h-[calc(100vh-40px)]">
-    <h2 className="text-lg sm:text-xl font-bold mb-4 text-center">Thông tin Server</h2>
-    <ul className="space-y-2 text-sm">
-      <li><strong>🟢 Trạng thái:</strong> Đang hoạt động</li>
-      <li><strong>🌐 IP:</strong> temp.zikdev.io</li>
-      <li><strong>🕒 Uptime:</strong> 12 ngày 5 giờ</li>
-      <li><strong>📦 Bộ nhớ:</strong> Loading...</li>
-      <li><strong>📨 Email xử lý:</strong> {emailHistory.length} email</li>
-    </ul>
-  </div>
-</div>
-
-);
-
+  );
 };
 
 export default TempMail;

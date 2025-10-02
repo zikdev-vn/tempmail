@@ -21,3 +21,7 @@
 
 ## git add .
 ## git commit -m "..."
+
+## how to update 
+- git reset --hard
+- git pull origin main
